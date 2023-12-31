@@ -29,26 +29,43 @@ const uint8_t TETROMINO_3[] = {
 	0, 3, 0,
 };
 
-/* tetromino L (L-tetromino) */
+/* tetromino L (L-tetromino 1) */
 const uint8_t TETROMINO_4[] = {
-	4, 0, 0,
-	4, 0, 0,
-	4, 4, 0,
-};
-
-/* tetromino Z (skew tetromino) */
-const uint8_t TETROMINO_5[] = {
-	0, 5, 5,
-	5, 5, 0,
+	0, 0, 4,
+	4, 4, 4,
 	0, 0, 0,
 };
+
+/* tetromino L (L-tetromino 2) */
+const uint8_t TETROMINO_5[] = {
+	5, 0, 0,
+	5, 5, 5,
+	0, 0, 0,
+};
+
+/* tetromino Z (skew tetromino 1) */
+const uint8_t TETROMINO_6[] = {
+	0, 6, 6,
+	6, 6, 0,
+	0, 0, 0,
+};
+
+/* tetromino Z (skew tetromino 2) */
+const uint8_t TETROMINO_7[] = {
+	7, 7, 0,
+	0, 7, 7,
+	0, 0, 0,
+};
+
 
 const struct tetromino TETROMINOS[] = {
 	(struct tetromino) { .data = TETROMINO_1, .size = 4 }, /* index 0 : straight tetromino */
 	(struct tetromino) { .data = TETROMINO_2, .size = 2 }, /* index 1 : square tetromino */
 	(struct tetromino) { .data = TETROMINO_3, .size = 3 }, /* index 2 : T-tetromino */
-	(struct tetromino) { .data = TETROMINO_4, .size = 3 }, /* index 3 : L-tetromino */
-	(struct tetromino) { .data = TETROMINO_5, .size = 3 }, /* index 4 : skew tetromino */
+	(struct tetromino) { .data = TETROMINO_4, .size = 3 }, /* index 3 : L-tetromino 1 */
+	(struct tetromino) { .data = TETROMINO_5, .size = 3 }, /* index 4 : L-tetromino 2 */
+	(struct tetromino) { .data = TETROMINO_6, .size = 3 }, /* index 5 : skew tetromino 1 */
+	(struct tetromino) { .data = TETROMINO_7, .size = 3 }, /* index 6 : skew tetromino 2 */
 };
 
 uint8_t tetromino_get(const struct tetromino *tetromino, int32_t row, int32_t col, enum tetromino_rotation rotation) {
