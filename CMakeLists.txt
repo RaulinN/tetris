@@ -26,6 +26,7 @@ add_executable(tetris src/main.c
         src/board.h
         src/piece.c
         src/piece.h
+        src/colors.h
 )
 
 # include_directories(${PROJECT_NAME} ${SDL2_INCLUDE_DIRS})

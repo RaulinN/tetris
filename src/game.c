@@ -11,6 +11,9 @@
 #include "piece.h"
 #include "tetromino.h"
 #include "log.h"
+#include "colors.h"
+
+#define GRID_SIZE 30
 
 
 struct input_state {
@@ -76,8 +79,50 @@ void update_game(struct game_state *game, const struct input_state *input) {
 	}
 }
 
-void render_game(const struct game_state *game, SDL_Renderer *renderer) {
+void fill_rect(
+		SDL_Renderer *renderer,
+		int32_t x, int32_t y,
+		int32_t width, int32_t height,
+		struct color color_value
+		) {
+	SDL_Rect rect = { .x = x, .y = y, .w = width, .h = height };
+	SDL_SetRenderDrawColor(renderer, color_value.r, color_value.g, color_value.b, color_value.a);
+	SDL_RenderFillRect(renderer, &rect);
+}
 
+void draw_cell(
+		SDL_Renderer *renderer,
+		int32_t row, int32_t col,
+		uint8_t value,
+		int32_t offset_x, int32_t offset_y
+		) {
+	struct color base_color =  BASE_COLORS[value];
+	struct color light_color = LIGHT_COLORS[value];
+	struct color dark_color =  DARK_COLORS[value];
+
+	const int32_t edge = GRID_SIZE / 8;
+	const int32_t x = col * GRID_SIZE + offset_x;
+	const int32_t y = row * GRID_SIZE + offset_y;
+
+	fill_rect(renderer, x, y, GRID_SIZE, GRID_SIZE, dark_color);
+	fill_rect(renderer, x + edge, y, GRID_SIZE - edge, GRID_SIZE - edge, light_color);
+	fill_rect(renderer, x + edge, y + edge, GRID_SIZE - 2 * edge, GRID_SIZE - 2 * edge, base_color);
+}
+
+void draw_piece(SDL_Renderer *renderer, const struct piece_state *piece, int32_t offset_x, int32_t offset_y) {
+	const struct tetromino *tetro = TETROMINOS + piece->tetromino_index;
+	for (int32_t row = 0; row < tetro->size; row += 1) {
+		for (int32_t col = 0; col < tetro->size; col += 1) {
+			uint8_t value = tetromino_get(tetro, row, col, piece->rotation);
+			if (value) {
+				draw_cell(renderer, piece->offset_row + row,piece->offset_col + col, value, offset_x, offset_y);
+			}
+		}
+	}
+}
+
+void render_game(const struct game_state *game, SDL_Renderer *renderer) {
+	draw_piece(renderer, &game->piece, 0, 0);
 }
 
 void start_game(SDL_Renderer *renderer) {
