@@ -22,3 +22,5 @@ uint8_t check_row_empty(const struct board_state *board, int32_t width, int32_t 
 
 int32_t find_lines(const struct board_state *board, int32_t width, int32_t height, uint8_t *lines_out);
 void clear_lines(struct board_state *board, int32_t width, int32_t height, const uint8_t *lines);
+
+void dump_board_state(const struct board_state *board, int32_t width, int32_t height);

@@ -68,3 +68,31 @@ void clear_lines(struct board_state *board, int32_t width, int32_t height, const
 		}
 	}
 }
+
+void dump_board_state(const struct board_state *board, int32_t width, int32_t height) {
+#ifndef DEBUG // print in debug mode only
+	return;
+#endif
+
+	fprintf(stdout, "----- Printing board state -----\n");
+	for (int32_t row = 0; row < height; row += 1) {
+		if (row < 10) {
+			fprintf(stdout, " %d : ", row);
+		} else {
+			fprintf(stdout, "%d : ", row);
+		}
+		for (int32_t col = 0; col < width; col += 1) {
+			const uint8_t value = board_get(board, width, row, col);
+			if (value) {
+				fprintf(stdout, "[%d] ", value);
+			} else {
+				fprintf(stdout, "[ ] ");
+			}
+		}
+
+		fprintf(stdout, "=> empty=%d\n", check_row_empty(board, BOARD_WIDTH, row));
+	}
+
+	fprintf(stdout, "\n");
+	fflush(stdout);
+}
