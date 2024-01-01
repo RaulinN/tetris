@@ -82,7 +82,6 @@ bool check_piece_valid(const struct piece_state *piece, const struct board_state
 	/* row and col are indexes of the tetromino matrix */
 	for (int32_t row = 0; row < tetromino->size; row += 1) {
 		for (int32_t col = 0; col < tetromino->size; col += 1) {
-			// TODO Check inline
 			const uint8_t value = tetromino_get(tetromino, row, col, piece->rotation);
 			if (value > 0) {
 				int32_t board_row = piece->offset_row + row;
@@ -214,13 +213,13 @@ static inline int32_t get_lines_for_next_level(int32_t start_level, int32_t leve
 }
 
 void update_game_start(struct game_state *game, const struct input_state *input) {
-	if (input->d_up) {
+	if (input->d_up > 0) {
 		game->start_level += 1;
 	}
-	if (input->d_down && game->start_level > 0) {
+	if (input->d_down > 0 && game->start_level > 0) {
 		game->start_level -= 1;
 	}
-	if (input->d_a) {
+	if (input->d_a > 0) {
 		memset(&game->board, 0, BOARD_WIDTH * BOARD_HEIGHT);
 		game->level = game->start_level;
 		game->line_count = 0;
@@ -231,7 +230,7 @@ void update_game_start(struct game_state *game, const struct input_state *input)
 }
 
 void update_game_game_over(struct game_state *game, const struct input_state *input) {
-	if (input->d_a) {
+	if (input->d_a > 0) {
 		game->phase = GAME_PHASE_START;
 	}
 }
@@ -316,6 +315,17 @@ void fill_rect(
 	SDL_RenderFillRect(renderer, &rect);
 }
 
+void draw_rect(
+		SDL_Renderer *renderer,
+		int32_t x, int32_t y,
+		int32_t width, int32_t height,
+		struct color color_value
+) {
+	SDL_Rect rect = { .x = x, .y = y, .w = width, .h = height };
+	SDL_SetRenderDrawColor(renderer, color_value.r, color_value.g, color_value.b, color_value.a);
+	SDL_RenderDrawRect(renderer, &rect);
+}
+
 void draw_string(
 		SDL_Renderer *renderer,
 		TTF_Font *font,
@@ -353,7 +363,8 @@ void draw_cell(
 		SDL_Renderer *renderer,
 		int32_t row, int32_t col,
 		uint8_t value,
-		int32_t offset_x, int32_t offset_y
+		int32_t offset_x, int32_t offset_y,
+		bool is_shadow
 		) {
 	struct color base_color =  BASE_COLORS[value];
 	struct color light_color = LIGHT_COLORS[value];
@@ -363,18 +374,23 @@ void draw_cell(
 	const int32_t x = col * GRID_SIZE + offset_x;
 	const int32_t y = row * GRID_SIZE + offset_y;
 
+	if (is_shadow) {
+		draw_rect(renderer, x, y, GRID_SIZE, GRID_SIZE, base_color);
+		return;
+	}
+
 	fill_rect(renderer, x, y, GRID_SIZE, GRID_SIZE, dark_color);
 	fill_rect(renderer, x + edge, y, GRID_SIZE - edge, GRID_SIZE - edge, light_color);
 	fill_rect(renderer, x + edge, y + edge, GRID_SIZE - 2 * edge, GRID_SIZE - 2 * edge, base_color);
 }
 
-void draw_piece(SDL_Renderer *renderer, const struct piece_state *piece, int32_t offset_x, int32_t offset_y) {
+void draw_piece(SDL_Renderer *renderer, const struct piece_state *piece, int32_t offset_x, int32_t offset_y, bool is_shadow) {
 	const struct tetromino *tetro = TETROMINOS + piece->tetromino_index;
 	for (int32_t row = 0; row < tetro->size; row += 1) {
 		for (int32_t col = 0; col < tetro->size; col += 1) {
 			uint8_t value = tetromino_get(tetro, row, col, piece->rotation);
 			if (value) {
-				draw_cell(renderer, piece->offset_row + row,piece->offset_col + col, value, offset_x, offset_y);
+				draw_cell(renderer, piece->offset_row + row,piece->offset_col + col, value, offset_x, offset_y, is_shadow);
 			}
 		}
 	}
@@ -389,24 +405,35 @@ void draw_board(
 	for (int32_t row = 0; row < height; row += 1) {
 		for (int32_t col = 0; col < width; col += 1) {
 			const uint8_t value = board_get(board, width, row, col);
-			draw_cell(renderer, row, col, value, offset_x, offset_y);
+			draw_cell(renderer, row, col, value, offset_x, offset_y, false);
 			/*if (value) {
-				draw_cell(renderer, row, col, value, offset_x, offset_y);
+				draw_cell(renderer, row, col, value, offset_x, offset_y, false);
 			}*/
 		}
 	}
 }
 
 void render_game(const struct game_state *game, SDL_Renderer *renderer, TTF_Font *font) {
+	char buffer[1024];
 	const int32_t padding_y = 60;
+
+	struct color color_white = (struct color) { .r = 0xFF, .g = 0xFF, .b = 0xFF, .a = 0xFF };
+	struct color color_black = (struct color) { .r = 0x00, .g = 0x00, .b = 0x00, .a = 0x00 };
 
 	draw_board(renderer, &game->board, BOARD_WIDTH, BOARD_HEIGHT, 0, padding_y);
 
 	if (game->phase == GAME_PHASE_PLAY) {
-		draw_piece(renderer, &game->piece, 0, padding_y);
-	}
+		draw_piece(renderer, &game->piece, 0, padding_y, false);
 
-	struct color colour = (struct color) { .r = 0xFF, .g = 0xFF, .b = 0xFF, .a = 0xFF };
+		// display shadow piece
+		struct piece_state piece_copy = game->piece;
+		while (check_piece_valid(&piece_copy, &game->board, BOARD_WIDTH, BOARD_HEIGHT)) {
+			piece_copy.offset_row += 1;
+		}
+		piece_copy.offset_row -= 1;
+
+		draw_piece(renderer, &piece_copy, 0, padding_y, true);
+	}
 
 	if (game->phase == GAME_PHASE_LINE) {
 		// line deletion highlighting
@@ -414,18 +441,39 @@ void render_game(const struct game_state *game, SDL_Renderer *renderer, TTF_Font
 			if (game->lines[row]) {
 				int32_t x = 0;
 				int32_t y = row * GRID_SIZE + padding_y;
-				fill_rect(renderer, x, y, BOARD_WIDTH * GRID_SIZE, GRID_SIZE, colour);
+				fill_rect(renderer, x, y, BOARD_WIDTH * GRID_SIZE, GRID_SIZE, color_white);
 			}
 		}
 	} else if (game->phase == GAME_PHASE_GAME_OVER) {
 		int32_t x = BOARD_WIDTH * GRID_SIZE / 2;
-		int32_t y = BOARD_HEIGHT * GRID_SIZE / 2;
-		draw_string(renderer, font, "GAME OVER", x, y, TEXT_ALIGN_CENTER, colour);
+		int32_t y = (BOARD_HEIGHT * GRID_SIZE + padding_y) / 2;
+		draw_string(renderer, font, "GAME OVER", x, y, TEXT_ALIGN_CENTER, color_white);
+	} else if (game->phase == GAME_PHASE_START) {
+		int32_t x = BOARD_WIDTH * GRID_SIZE / 2;
+		int32_t y = (BOARD_HEIGHT * GRID_SIZE + padding_y) / 2;
+		draw_string(renderer, font, "PRESS START", x, y, TEXT_ALIGN_CENTER, color_white);
+
+		snprintf(buffer, sizeof(buffer), "STARTING LEVEL: %d", game->start_level);
+		draw_string(renderer, font, buffer, x, y + 30, TEXT_ALIGN_CENTER, color_white);
 	}
 
-	char buffer[1024];
+	// hide the 2 hidden rows at the top
+	/* fill_rect(
+			renderer,
+			0, padding_y,
+			BOARD_WIDTH * GRID_SIZE,
+			(BOARD_HEIGHT - BOARD_VISIBLE_HEIGHT) * GRID_SIZE,
+			color_black
+	);*/
+
 	snprintf(buffer, sizeof(buffer), "LEVEL: %d", game->level);
-	draw_string(renderer, font, buffer, 5, 5, TEXT_ALIGN_LEFT, colour);
+	draw_string(renderer, font, buffer, 10, 10, TEXT_ALIGN_LEFT, color_white);
+
+	snprintf(buffer, sizeof(buffer), "POINTS: %d", game->points);
+	draw_string(renderer, font, buffer, 10, 40, TEXT_ALIGN_LEFT, color_white);
+
+	snprintf(buffer, sizeof(buffer), "LINES: %d", game->line_count);
+	draw_string(renderer, font, buffer, 10, 70, TEXT_ALIGN_LEFT, color_white);
 }
 
 void start_game(SDL_Renderer *renderer, TTF_Font *font) {

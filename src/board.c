@@ -7,7 +7,6 @@
 #include "board.h"
 
 
-// TODO inline
 uint8_t board_get(const struct board_state *board, int32_t width, int32_t row, int32_t col) {
 	const int32_t index = row * width + col;
 	return board->data[index];
@@ -61,9 +60,11 @@ void clear_lines(struct board_state *board, int32_t width, int32_t height, const
 		if (src_row < 0) {
 			// empty the row in the destination
 			memset(board->data + dst_row * width, 0, width);
-		} else { // TODO src_row == dst_row
-			// copy the row in the destination
-			memcpy(board->data + dst_row * width, board->data + src_row * width, width);
+		} else {
+			if (src_row != dst_row) {
+				// copy the row in the destination
+				memcpy(board->data + dst_row * width, board->data + src_row * width, width);
+			}
 			src_row -= 1;
 		}
 	}

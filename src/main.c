@@ -6,7 +6,7 @@
 #include "log.h"
 #include "game.h"
 
-#define WINDOW_WIDTH 400
+#define WINDOW_WIDTH 300
 #define WINDOW_HEIGHT 720
 
 
