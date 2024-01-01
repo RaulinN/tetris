@@ -10,8 +10,9 @@ endif()
 # https://stackoverflow.com/questions/74899325/sdl2-ld-symbols-not-found
 # https://stackoverflow.com/questions/28395833/using-sdl2-with-cmake
 # https://wolfgang-ziegler.com/blog/sdl-cmake-osx
-# find_package(SDL2 REQUIRED COMPONENTS SDL2)
-find_package(SDL2 REQUIRED)
+find_package(SDL2 REQUIRED COMPONENTS SDL2)
+#find_package(SDL2 REQUIRED)
+find_package(SDL2_ttf REQUIRED)
 
 message ([STATUS] " SDL2_INCLUDE_DIR => " ${SDL2_INCLUDE_DIRS})
 message ([STATUS] " SDL2_LIBRARIES => " ${SDL2_LIBRARIES})
@@ -31,4 +32,4 @@ add_executable(tetris src/main.c
 
 # include_directories(${PROJECT_NAME} ${SDL2_INCLUDE_DIRS})
 # target_link_libraries(${PROJECT_NAME} PRIVATE SDL2::SDL2)
-target_link_libraries(${PROJECT_NAME} ${SDL2_LIBRARIES})
+target_link_libraries(${PROJECT_NAME} PRIVATE ${SDL2_LIBRARIES} SDL2_ttf::SDL2_ttf)

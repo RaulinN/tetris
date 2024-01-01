@@ -55,6 +55,7 @@ dkms.conf
 .idea
 
 cmake-build-*
-build
+build/*
+!build/novem___.ttf
 
 .DS_Store

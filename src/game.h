@@ -5,12 +5,14 @@
 #pragma once
 
 #include <SDL.h>
+#include <SDL_ttf.h>
 
 #include "board.h"
 #include "piece.h"
 
 
 enum game_phase {
+	GAME_PHASE_START,					/* game phase: level selection */
 	GAME_PHASE_PLAY,					/* game phase: playing tetris */
 	GAME_PHASE_LINE,					/* game phase: currently clearing lines (highlighting) */
 	GAME_PHASE_GAME_OVER,				/* game phase: game is over (lost) */
@@ -25,7 +27,7 @@ struct game_state {
 	enum game_phase phase;				/* current state of the game */
 
 	int32_t level;						/* current level of the game */
-	int32_t start_level;				/* TODO */
+	int32_t start_level;				/* starting level */
 	int32_t line_count;					/* total number of lines cleared during the game */
 	int32_t points;						/* total number of points achieved */
 
@@ -34,4 +36,4 @@ struct game_state {
 	float time;							/* current time */
 };
 
-void start_game(SDL_Renderer *renderer);
+void start_game(SDL_Renderer *renderer, TTF_Font *font);

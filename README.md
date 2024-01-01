@@ -4,10 +4,10 @@ C implementation of a simple tetris game. It was written as an exercise (and for
 
 ## Building
 
-Building the game requires C99, `cmake`, and [SDL](https://www.libsdl.org/).
+Building the game requires C99, `cmake`, and [SDL](https://www.libsdl.org/) (both SDL2 and SDL2_ttf).
 
 ```bash
-$ mkdir build; cd build
+$ cd build
 $ cmake -DCMAKE_BUILD_TYPE=Release ..
 $ make
 $ ./tetris

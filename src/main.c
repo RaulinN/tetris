@@ -1,6 +1,7 @@
 #include <stdio.h>
 
 #include <SDL.h>
+#include <SDL_ttf.h>
 
 #include "log.h"
 #include "game.h"
@@ -14,6 +15,11 @@ int main(int argc, char *argv[]) {
 
 	if (SDL_Init(SDL_INIT_VIDEO) != 0) {
 		LOG_ERROR("SDL_INIT error: %s", SDL_GetError());
+		return EXIT_FAILURE;
+	}
+
+	if (TTF_Init() < 0) {
+		LOG_ERROR("TTF_Init error: %s", TTF_GetError());
 		return EXIT_FAILURE;
 	}
 
@@ -36,8 +42,19 @@ int main(int argc, char *argv[]) {
 		return EXIT_FAILURE;
 	}
 
-	start_game(renderer);
 
+	const char *font_name = "novem___.ttf";
+	TTF_Font *font = TTF_OpenFont(font_name, 24);
+	if (font == NULL) {
+		LOG_ERROR("TTF_OpenFont error: %s", TTF_GetError());
+		FLOG_INFO("the file \"novem___.ttf\" should be in the build folder");
+		return EXIT_FAILURE;
+	}
+
+
+	start_game(renderer, font);
+
+	TTF_CloseFont(font);
 	SDL_DestroyRenderer(renderer);
 	SDL_Quit();
 

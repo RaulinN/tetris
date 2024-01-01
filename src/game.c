@@ -6,6 +6,7 @@
 #include <stdbool.h>
 
 #include <SDL.h>
+#include <SDL_ttf.h>
 
 #include "game.h"
 #include "piece.h"
@@ -52,6 +53,8 @@ const uint8_t FRAMES_PER_DROP[] = {
 		2,
 		1,
 };
+
+enum text_alignment { TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER, TEXT_ALIGN_RIGHT };
 
 struct input_state {
 	uint8_t left;
@@ -119,18 +122,6 @@ static inline int32_t random_int(int32_t min, int32_t max) {
 	return min + rand() % range;
 }
 
-void spawn_piece(struct game_state *game) {
-	game->piece = (struct piece_state){};
-	game->piece.tetromino_index = (uint8_t)random_int(0, TETROMINO_COUNT);
-	game->piece.offset_col = BOARD_WIDTH / 2;
-	/*game->piece = (struct piece_state) {
-		.tetromino_index = 4, // TODO random
-		.offset_row = 0,
-		.offset_col = BOARD_WIDTH / 2,
-		.rotation = ROT_0,
-	};*/
-}
-
 float get_time_to_next_drop(int32_t level) {
 	if (level > LEVEL_MAX_SPEED) {
 		level = LEVEL_MAX_SPEED;
@@ -139,13 +130,25 @@ float get_time_to_next_drop(int32_t level) {
 	return FRAMES_PER_DROP[level] * TARGET_SECONDS_PER_FRAME;
 }
 
+void spawn_piece(struct game_state *game) {
+	game->piece = (struct piece_state){};
+	game->piece.tetromino_index = (uint8_t)random_int(0, TETROMINO_COUNT);
+	game->piece.offset_col = BOARD_WIDTH / 2;
+	game->next_drop_time = game->time + get_time_to_next_drop(game->level);
+}
+
 bool soft_drop(struct game_state *game) {
 	game->piece.offset_row += 1;
 	/* if not valid => assume we collided and thus move the piece back up */
 	if (!check_piece_valid(&game->piece, &game->board, BOARD_WIDTH, BOARD_HEIGHT)) {
 		game->piece.offset_row -= 1;
 		merge_piece(game);
+		dump_board_state(&game->board, BOARD_WIDTH, BOARD_HEIGHT); // printed only in debug mode
 		spawn_piece(game);
+
+		if (!check_row_empty(&game->board, BOARD_WIDTH, 1)) {
+			game->phase = GAME_PHASE_GAME_OVER;
+		}
 		return false;
 	}
 
@@ -190,6 +193,29 @@ static inline int32_t get_lines_for_next_level(int32_t start_level, int32_t leve
 	return first_level_up_limit + diff * 10;
 }
 
+void update_game_start(struct game_state *game, const struct input_state *input) {
+	if (input->d_up) {
+		game->start_level += 1;
+	}
+	if (input->d_down && game->start_level > 0) {
+		game->start_level -= 1;
+	}
+	if (input->d_a) {
+		memset(&game->board, 0, BOARD_WIDTH * BOARD_HEIGHT);
+		game->level = game->start_level;
+		game->line_count = 0;
+		game->points = 0;
+		spawn_piece(game);
+		game->phase = GAME_PHASE_PLAY;
+	}
+}
+
+void update_game_game_over(struct game_state *game, const struct input_state *input) {
+	if (input->d_a) {
+		game->phase = GAME_PHASE_START;
+	}
+}
+
 void update_game_line(struct game_state *game) {
 	if (game->time >= game->highlight_end_time) {
 		clear_lines(&game->board, BOARD_WIDTH, BOARD_HEIGHT, game->lines);
@@ -206,6 +232,7 @@ void update_game_line(struct game_state *game) {
 }
 
 void update_game_play(struct game_state *game, const struct input_state *input) {
+
 	struct piece_state piece = game->piece;
 
 	if (input->d_left > 0) {
@@ -218,7 +245,6 @@ void update_game_play(struct game_state *game, const struct input_state *input) 
 		piece_rotate(&piece);
 	}
 
-	// TODO might be sus (&game->board)
 	if (check_piece_valid(&piece, &game->board, BOARD_WIDTH, BOARD_HEIGHT)) {
 		game->piece = piece; /* update the state of the piece */
 	}
@@ -240,20 +266,21 @@ void update_game_play(struct game_state *game, const struct input_state *input) 
 		game->phase = GAME_PHASE_LINE;
 		game->highlight_end_time = game->time + 0.5f; // current time +500ms
 	}
-
-	int32_t game_over_row = max(0, BOARD_HEIGHT - BOARD_VISIBLE_HEIGHT - 1);
-	if (!check_row_empty(&game->board, BOARD_WIDTH, game_over_row)) {
-		game->phase = GAME_PHASE_GAME_OVER;
-	}
 }
 
 void update_game(struct game_state *game, const struct input_state *input) {
 	switch (game->phase) {
+		case GAME_PHASE_START:
+			update_game_start(game, input);
+			break;
 		case GAME_PHASE_PLAY:
 			update_game_play(game, input);
 			break;
 		case GAME_PHASE_LINE:
 			update_game_line(game);
+			break;
+		case GAME_PHASE_GAME_OVER:
+			update_game_game_over(game, input);
 			break;
 	}
 }
@@ -267,6 +294,39 @@ void fill_rect(
 	SDL_Rect rect = { .x = x, .y = y, .w = width, .h = height };
 	SDL_SetRenderDrawColor(renderer, color_value.r, color_value.g, color_value.b, color_value.a);
 	SDL_RenderFillRect(renderer, &rect);
+}
+
+void draw_string(
+		SDL_Renderer *renderer,
+		TTF_Font *font,
+		const char *text,
+		int32_t x, int32_t y,
+		enum text_alignment alignment,
+		struct color text_color
+) {
+	SDL_Color sdl_color = { text_color.r, text_color.b, text_color.b, text_color.a };
+	SDL_Surface *surface = TTF_RenderText_Solid(font, text, sdl_color);
+	SDL_Texture *texture = SDL_CreateTextureFromSurface(renderer, surface);
+
+	SDL_Rect rect;
+	rect.y = y;
+	rect.w = surface->w;
+	rect.h = surface->h;
+	switch (alignment) {
+		case TEXT_ALIGN_LEFT:
+			rect.x = x;
+			break;
+		case TEXT_ALIGN_CENTER:
+			rect.x = x - surface->w / 2;
+			break;
+		case TEXT_ALIGN_RIGHT:
+			rect.x = x - surface->w;
+			break;
+	}
+
+	SDL_RenderCopy(renderer, texture, 0, &rect);
+	SDL_FreeSurface(surface);
+	SDL_DestroyTexture(texture);
 }
 
 void draw_cell(
@@ -317,9 +377,14 @@ void draw_board(
 	}
 }
 
-void render_game(const struct game_state *game, SDL_Renderer *renderer) {
+void render_game(const struct game_state *game, SDL_Renderer *renderer, TTF_Font *font) {
 	draw_board(renderer, &game->board, BOARD_WIDTH, BOARD_HEIGHT, 0, 0);
-	draw_piece(renderer, &game->piece, 0, 0);
+
+	if (game->phase == GAME_PHASE_PLAY) {
+		draw_piece(renderer, &game->piece, 0, 0);
+	}
+
+	struct color colour = (struct color) { .r = 0xFF, .g = 0xFF, .b = 0xFF, .a = 0xFF };
 
 	if (game->phase == GAME_PHASE_LINE) {
 		// line deletion highlighting
@@ -327,16 +392,19 @@ void render_game(const struct game_state *game, SDL_Renderer *renderer) {
 			if (game->lines[row]) {
 				int32_t x = 0;
 				int32_t y = row * GRID_SIZE;
-				struct color colour = (struct color) { .r = 0xFF, .g = 0xFF, .b = 0xFF, .a = 0xFF };
 				fill_rect(renderer, x, y, BOARD_WIDTH * GRID_SIZE, GRID_SIZE, colour);
 			}
 		}
 	} else if (game->phase == GAME_PHASE_GAME_OVER) {
-		// TODO draw text game over on the screen
+		int32_t x = BOARD_WIDTH * GRID_SIZE / 2;
+		int32_t y = BOARD_HEIGHT * GRID_SIZE / 2;
+		draw_string(renderer, font, "GAME OVER", x, y, TEXT_ALIGN_CENTER, colour);
 	}
+
+	draw_string(renderer, font, "TETRIS", 0, 0, TEXT_ALIGN_LEFT, colour);
 }
 
-void start_game(SDL_Renderer *renderer) {
+void start_game(SDL_Renderer *renderer, TTF_Font *font) {
 	/* states are pretty small => keep it simple and use the stack */
 	struct game_state game = {};
 	struct input_state input = {};
@@ -380,7 +448,7 @@ void start_game(SDL_Renderer *renderer) {
 		SDL_RenderClear(renderer);
 
 		update_game(&game, &input);
-		render_game(&game, renderer);
+		render_game(&game, renderer, font);
 
 		SDL_RenderPresent(renderer);
 	}
