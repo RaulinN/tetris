@@ -6,6 +6,8 @@
 
 #include <stdint.h>
 
+#define TETROMINO_COUNT 7
+
 
 enum tetromino_rotation {
 	ROT_0,

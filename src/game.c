@@ -114,8 +114,15 @@ void merge_piece(struct game_state *game) {
 
 }
 
+static inline int32_t random_int(int32_t min, int32_t max) {
+	int32_t range = max - min;
+	return min + rand() % range;
+}
+
 void spawn_piece(struct game_state *game) {
 	game->piece = (struct piece_state){};
+	game->piece.tetromino_index = (uint8_t)random_int(0, TETROMINO_COUNT);
+	game->piece.offset_col = BOARD_WIDTH / 2;
 	/*game->piece = (struct piece_state) {
 		.tetromino_index = 4, // TODO random
 		.offset_row = 0,
@@ -150,6 +157,54 @@ void hard_drop(struct game_state *game) {
 	while (soft_drop(game));
 }
 
+static inline int32_t compute_points(int32_t level, int32_t line_count) {
+	switch (line_count) {
+		case 1:
+			return 40 * (level + 1);
+		case 2:
+			return 100 * (level + 1);
+		case 3:
+			return 300 * (level + 1);
+		case 4:
+			return 1200 * (level + 1);
+		default:
+			return 0;
+	}
+}
+
+static inline int32_t min(int32_t x, int32_t y) {
+	return x < y ? x : y;
+}
+
+static inline int32_t max(int32_t x, int32_t y) {
+	return x > y ? x : y;
+}
+
+static inline int32_t get_lines_for_next_level(int32_t start_level, int32_t level) {
+	int32_t first_level_up_limit = min((start_level * 10 + 10), max(100, (start_level * 10 - 50)));
+	if (level == start_level) {
+		return first_level_up_limit;
+	}
+
+	int32_t diff = level - start_level;
+	return first_level_up_limit + diff * 10;
+}
+
+void update_game_line(struct game_state *game) {
+	if (game->time >= game->highlight_end_time) {
+		clear_lines(&game->board, BOARD_WIDTH, BOARD_HEIGHT, game->lines);
+		game->line_count += game->pending_line_count;
+		game->points += compute_points(game->level, game->pending_line_count);
+
+		int32_t lines_for_next_level = get_lines_for_next_level(game->start_level, game->level);
+		if (game->line_count >= lines_for_next_level) {
+			game->level += 1;
+		}
+
+		game->phase = GAME_PHASE_PLAY;
+	}
+}
+
 void update_game_play(struct game_state *game, const struct input_state *input) {
 	struct piece_state piece = game->piece;
 
@@ -179,12 +234,27 @@ void update_game_play(struct game_state *game, const struct input_state *input) 
 	while (game->time >= game->next_drop_time) {
 		soft_drop(game);
 	}
+
+	game->pending_line_count = find_lines(&game->board, BOARD_WIDTH, BOARD_HEIGHT, game->lines);
+	if (game->pending_line_count > 0) {
+		game->phase = GAME_PHASE_LINE;
+		game->highlight_end_time = game->time + 0.5f; // current time +500ms
+	}
+
+	int32_t game_over_row = max(0, BOARD_HEIGHT - BOARD_VISIBLE_HEIGHT - 1);
+	if (!check_row_empty(&game->board, BOARD_WIDTH, game_over_row)) {
+		game->phase = GAME_PHASE_GAME_OVER;
+	}
 }
 
 void update_game(struct game_state *game, const struct input_state *input) {
 	switch (game->phase) {
 		case GAME_PHASE_PLAY:
-			return update_game_play(game, input);
+			update_game_play(game, input);
+			break;
+		case GAME_PHASE_LINE:
+			update_game_line(game);
+			break;
 	}
 }
 
@@ -250,6 +320,20 @@ void draw_board(
 void render_game(const struct game_state *game, SDL_Renderer *renderer) {
 	draw_board(renderer, &game->board, BOARD_WIDTH, BOARD_HEIGHT, 0, 0);
 	draw_piece(renderer, &game->piece, 0, 0);
+
+	if (game->phase == GAME_PHASE_LINE) {
+		// line deletion highlighting
+		for (int32_t row = 0; row < BOARD_HEIGHT; row += 1) {
+			if (game->lines[row]) {
+				int32_t x = 0;
+				int32_t y = row * GRID_SIZE;
+				struct color colour = (struct color) { .r = 0xFF, .g = 0xFF, .b = 0xFF, .a = 0xFF };
+				fill_rect(renderer, x, y, BOARD_WIDTH * GRID_SIZE, GRID_SIZE, colour);
+			}
+		}
+	} else if (game->phase == GAME_PHASE_GAME_OVER) {
+		// TODO draw text game over on the screen
+	}
 }
 
 void start_game(SDL_Renderer *renderer) {
@@ -272,6 +356,10 @@ void start_game(SDL_Renderer *renderer) {
 
 		int32_t key_count;
 		const uint8_t *key_states = SDL_GetKeyboardState(&key_count);
+
+		if (key_states[SDL_SCANCODE_ESCAPE]) {
+			quit = true;
+		}
 
 		struct input_state prev_input = input;
 

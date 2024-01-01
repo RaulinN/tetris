@@ -28,6 +28,16 @@ static inline uint8_t check_row_filled(const struct board_state *board, int32_t 
 	return 1;
 }
 
+uint8_t check_row_empty(const struct board_state *board, int32_t width, int32_t row) {
+	for (int32_t col = 0; col < width; col += 1) {
+		if (board_get(board, width, row, col)) {
+			return 0;
+		}
+	}
+
+	return 1;
+}
+
 // returns the number of filled lines in board, and populates lines_out which is an array of length height
 // containing 1 if the line is filled, and 0 otherwise
 int32_t find_lines(const struct board_state *board, int32_t width, int32_t height, uint8_t *lines_out) {
@@ -44,14 +54,14 @@ int32_t find_lines(const struct board_state *board, int32_t width, int32_t heigh
 void clear_lines(struct board_state *board, int32_t width, int32_t height, const uint8_t *lines) {
 	int32_t src_row = height - 1; // start at the bottom
 	for (int32_t dst_row = height - 1; dst_row >= 0; dst_row -= 1) {
-		while (src_row > 0 && lines[src_row]) { // ignore filled rows
+		while (src_row >= 0 && lines[src_row]) { // ignore filled rows
 			src_row -= 1;
 		}
 
 		if (src_row < 0) {
 			// empty the row in the destination
 			memset(board->data + dst_row * width, 0, width);
-		} else {
+		} else { // TODO src_row == dst_row
 			// copy the row in the destination
 			memcpy(board->data + dst_row * width, board->data + src_row * width, width);
 			src_row -= 1;
