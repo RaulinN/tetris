@@ -2,6 +2,7 @@
 // Created by Raulin Nicolas on 31.12.23.
 //
 
+#include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
 
@@ -131,8 +132,27 @@ float get_time_to_next_drop(int32_t level) {
 }
 
 void spawn_piece(struct game_state *game) {
+	const uint8_t old_index = game->piece.tetromino_index;
+
 	game->piece = (struct piece_state){};
-	game->piece.tetromino_index = (uint8_t)random_int(0, TETROMINO_COUNT);
+
+	// generate a number between 0 and TETROMINO_COUNT + 1 (i.e. 0, 1, 2, ..., 6, 7 even though
+	// there is 7 possible tetrominos. The old index is x. Then,
+	//  - if the result is not x and is not 7 => accept the result
+	//  - if the results is x or 7 => roll a new number between 0 and TETROMINO_COUNT (i.e.
+	//    0, 1, ..., 5, 6) and accept the result no matter what
+	const uint8_t generated_index = (uint8_t)random_int(0, TETROMINO_COUNT + 1);
+	const bool reroll = generated_index == old_index || generated_index == TETROMINO_COUNT;
+	if (reroll) {
+		game->piece.tetromino_index = (uint8_t)random_int(0, TETROMINO_COUNT);
+	} else {
+		game->piece.tetromino_index = generated_index;
+	}
+
+	LOG_INFO(
+			"spawning new piece: old tetromino_index=%d, new tetromino_index=%d (rerolled=%d)",
+			old_index, game->piece.tetromino_index, reroll
+	);
 	game->piece.offset_col = BOARD_WIDTH / 2;
 	game->next_drop_time = game->time + get_time_to_next_drop(game->level);
 }
@@ -378,10 +398,12 @@ void draw_board(
 }
 
 void render_game(const struct game_state *game, SDL_Renderer *renderer, TTF_Font *font) {
-	draw_board(renderer, &game->board, BOARD_WIDTH, BOARD_HEIGHT, 0, 0);
+	const int32_t padding_y = 60;
+
+	draw_board(renderer, &game->board, BOARD_WIDTH, BOARD_HEIGHT, 0, padding_y);
 
 	if (game->phase == GAME_PHASE_PLAY) {
-		draw_piece(renderer, &game->piece, 0, 0);
+		draw_piece(renderer, &game->piece, 0, padding_y);
 	}
 
 	struct color colour = (struct color) { .r = 0xFF, .g = 0xFF, .b = 0xFF, .a = 0xFF };
@@ -391,7 +413,7 @@ void render_game(const struct game_state *game, SDL_Renderer *renderer, TTF_Font
 		for (int32_t row = 0; row < BOARD_HEIGHT; row += 1) {
 			if (game->lines[row]) {
 				int32_t x = 0;
-				int32_t y = row * GRID_SIZE;
+				int32_t y = row * GRID_SIZE + padding_y;
 				fill_rect(renderer, x, y, BOARD_WIDTH * GRID_SIZE, GRID_SIZE, colour);
 			}
 		}
@@ -401,7 +423,9 @@ void render_game(const struct game_state *game, SDL_Renderer *renderer, TTF_Font
 		draw_string(renderer, font, "GAME OVER", x, y, TEXT_ALIGN_CENTER, colour);
 	}
 
-	draw_string(renderer, font, "TETRIS", 0, 0, TEXT_ALIGN_LEFT, colour);
+	char buffer[1024];
+	snprintf(buffer, sizeof(buffer), "LEVEL: %d", game->level);
+	draw_string(renderer, font, buffer, 5, 5, TEXT_ALIGN_LEFT, colour);
 }
 
 void start_game(SDL_Renderer *renderer, TTF_Font *font) {
