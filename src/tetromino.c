@@ -68,6 +68,7 @@ const struct tetromino TETROMINOS[] = {
 	(struct tetromino) { .data = TETROMINO_7, .size = 3 }, /* index 6 : skew tetromino 2 */
 };
 
+// TODO inline
 uint8_t tetromino_get(const struct tetromino *tetromino, int32_t row, int32_t col, enum tetromino_rotation rotation) {
 	const int32_t size = tetromino->size;
 	switch (rotation) {

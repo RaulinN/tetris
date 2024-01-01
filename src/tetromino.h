@@ -22,4 +22,4 @@ struct tetromino {
 
 extern const struct tetromino TETROMINOS[];
 
-inline uint8_t tetromino_get(const struct tetromino *tetromino, int32_t row, int32_t col, enum tetromino_rotation rotation);
+uint8_t tetromino_get(const struct tetromino *tetromino, int32_t row, int32_t col, enum tetromino_rotation rotation);

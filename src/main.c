@@ -10,7 +10,7 @@
 
 
 int main(int argc, char *argv[]) {
-	LOG_DEBUG("Debugging is enabled. Hello World! The year is (still) %d", 2023);
+	LOG_DEBUG("Debugging is enabled. Hello World! The year is (now) %d", 2024);
 
 	if (SDL_Init(SDL_INIT_VIDEO) != 0) {
 		LOG_ERROR("SDL_INIT error: %s", SDL_GetError());

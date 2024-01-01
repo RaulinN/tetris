@@ -18,6 +18,11 @@ struct game_state {
 	struct board_state board;
 	struct piece_state piece;
 	enum game_phase phase;
+
+	int32_t level;
+
+	float next_drop_time;
+	float time;
 };
 
 void start_game(SDL_Renderer *renderer);
